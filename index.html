@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Heatmap Consistency Planner</title>
+
+<style>
+  :root {
+    --bg-main: #1c1c1c;
+    --card-bg: rgba(255,255,255,0.06);
+    --outline: rgba(255,255,255,0.15);
+
+    --gold-1: #e6d8a3;
+    --gold-2: #d6bf73;
+    --gold-3: #c9a94a;
+    --gold-4: #b8962e;
+
+    --text-main: #f2f2f2;
+    --text-muted: #bdbdbd;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+    color: var(--text-main);
+    background:
+      linear-gradient(135deg, #1c1c1c 60%, #222 60%);
+  }
+
+  .app {
+    padding: 40px;
+    max-width: 1400px;
+    margin: auto;
+  }
+
+  h1 {
+    margin: 0 0 24px 0;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    color: var(--gold-2);
+  }
+
+  /* ================= CALENDAR ================= */
+
+  .calendar {
+    background: var(--card-bg);
+    border: 1px solid var(--outline);
+    border-radius: 22px;
+    padding: 28px;
+    margin-bottom: 32px;
+    backdrop-filter: blur(6px);
+  }
+
+  .calendar-scroll {
+    overflow-x: auto;
+    padding-bottom: 12px;
+  }
+
+  .months {
+    display: grid;
+    grid-template-columns: repeat(53, 22px);
+    gap: 8px;
+    margin-left: 36px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: var(--gold-1);
+    min-width: max-content;
+  }
+
+  .heatmap-area {
+    display: flex;
+    gap: 14px;
+    min-width: max-content;
+  }
+
+  .weekdays {
+    display: grid;
+    grid-template-rows: repeat(7, 22px);
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .heatmap {
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-rows: repeat(7, 22px);
+    grid-auto-columns: 22px;
+    gap: 8px;
+  }
+
+  .day {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.08);
+    cursor: pointer;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  .day:hover {
+    transform: scale(1.12);
+    box-shadow: 0 0 0 2px rgba(214,191,115,0.6);
+  }
+
+  .day.selected {
+    outline: 3px solid var(--gold-2);
+    outline-offset: 2px;
+  }
+
+  .lvl-0 { background: rgba(255,255,255,0.08); }
+  .lvl-1 { background: var(--gold-1); }
+  .lvl-2 { background: var(--gold-2); }
+  .lvl-3 { background: var(--gold-3); }
+  .lvl-4 { background: var(--gold-4); }
+
+  /* ================= PLANNER ================= */
+
+  .planner {
+    background: var(--card-bg);
+    border: 1px solid var(--outline);
+    border-radius: 22px;
+    padding: 28px;
+    backdrop-filter: blur(6px);
+  }
+
+  .planner h2 {
+    margin: 0 0 6px 0;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--gold-2);
+  }
+
+  .hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 18px;
+  }
+
+  .tasks {
+    max-width: 700px;
+  }
+
+  .task {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .task input,
+  .task select {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid var(--outline);
+    color: var(--text-main);
+    padding: 10px;
+    border-radius: 10px;
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+  }
+
+  .task input { flex: 1; }
+
+  .task button {
+    background: none;
+    border: none;
+    color: var(--gold-2);
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .add-btn {
+    margin-top: 18px;
+    padding: 12px 20px;
+    border-radius: 14px;
+    border: none;
+    background: var(--gold-2);
+    color: #1c1c1c;
+    font-weight: 600;
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+    cursor: pointer;
+  }
+
+  /* ================= TOOLTIP ================= */
+
+  .tooltip {
+    position: absolute;
+    background: #222;
+    color: var(--text-main);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    pointer-events: none;
+    white-space: nowrap;
+    border: 1px solid var(--outline);
+    z-index: 1000;
+    display: none;
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <h1>Heatmap Consistency Planner</h1>
+
+  <div class="calendar">
+    <div class="calendar-scroll">
+
+      <div class="months" id="months"></div>
+
+      <div class="heatmap-area">
+        <div class="weekdays">
+          <div>Sun</div><div>Mon</div><div>Tue</div>
+          <div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+        </div>
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="planner">
+    <h2 id="dateTitle">Select a day</h2>
+    <div class="hint">Plan your day and track progress manually</div>
+    <div class="tasks" id="tasks"></div>
+    <button class="add-btn" onclick="addTask()">+ Add Task</button>
+  </div>
+
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const heatmap = document.getElementById("heatmap");
+const monthsDiv = document.getElementById("months");
+const tasksDiv = document.getElementById("tasks");
+const dateTitle = document.getElementById("dateTitle");
+const tooltip = document.getElementById("tooltip");
+
+const data = JSON.parse(localStorage.getItem("plannerData")) || {};
+let selectedDate = null;
+
+const year = 2026;
+const start = new Date(year, 0, 1);
+const startDay = start.getDay();
+
+const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function save() {
+  localStorage.setItem("plannerData", JSON.stringify(data));
+}
+
+function avg(tasks) {
+  if (!tasks || !tasks.length) return 0;
+  return tasks.reduce((a,t)=>a+Number(t.progress),0)/tasks.length;
+}
+
+function level(v) {
+  if (v === 0) return 0;
+  if (v <= 25) return 1;
+  if (v <= 50) return 2;
+  if (v <= 75) return 3;
+  return 4;
+}
+
+function render() {
+  heatmap.innerHTML = "";
+  monthsDiv.innerHTML = "";
+
+  let date = new Date(start);
+  let currentMonth = -1;
+
+  for (let i = 0; i < startDay; i++) {
+    heatmap.appendChild(document.createElement("div"));
+  }
+
+  while (date.getFullYear() === year) {
+    if (date.getDay() === 0) {
+      const m = date.getMonth();
+      const el = document.createElement("div");
+      el.textContent = monthNames[m];
+      monthsDiv.appendChild(m !== currentMonth ? el : document.createElement("div"));
+      currentMonth = m;
+    }
+
+    const key = date.toISOString().split("T")[0];
+    const tasks = data[key] || [];
+    const avgP = Math.round(avg(tasks));
+
+    const cell = document.createElement("div");
+    cell.className = `day lvl-${level(avgP)}`;
+
+    cell.onmouseenter = () => {
+      tooltip.innerHTML = `
+        <strong>${key}</strong><br>
+        ${tasks.length ? `${tasks.length} tasks • ${avgP}% avg` : "No tasks planned"}
+      `;
+      tooltip.style.display = "block";
+    };
+
+    cell.onmousemove = (e) => {
+      tooltip.style.left = e.pageX + 12 + "px";
+      tooltip.style.top = e.pageY + 12 + "px";
+    };
+
+    cell.onmouseleave = () => tooltip.style.display = "none";
+
+    cell.onclick = () => selectDay(key, cell);
+
+    heatmap.appendChild(cell);
+    date.setDate(date.getDate() + 1);
+  }
+}
+
+function selectDay(key, cell) {
+  selectedDate = key;
+  dateTitle.textContent = key;
+  document.querySelectorAll(".day").forEach(d => d.classList.remove("selected"));
+  cell.classList.add("selected");
+  renderTasks();
+}
+
+function renderTasks() {
+  tasksDiv.innerHTML = "";
+  (data[selectedDate] || []).forEach((t,i)=>{
+    const d = document.createElement("div");
+    d.className="task";
+    d.innerHTML=`
+      <input value="${t.name}" onchange="data['${selectedDate}'][${i}].name=this.value;save();render();">
+      <select onchange="data['${selectedDate}'][${i}].progress=this.value;save();render();">
+        ${[0,25,50,75,100].map(v=>`<option ${t.progress==v?"selected":""}>${v}%</option>`).join("")}
+      </select>
+      <button onclick="data['${selectedDate}'].splice(${i},1);save();renderTasks();render();">×</button>
+    `;
+    tasksDiv.appendChild(d);
+  });
+}
+
+function addTask() {
+  if (!selectedDate) return alert("Select a day first");
+  data[selectedDate] = data[selectedDate] || [];
+  data[selectedDate].push({name:"",progress:0});
+  save(); renderTasks(); render();
+}
+
+render();
+</script>
+
+</body>
+</html>
